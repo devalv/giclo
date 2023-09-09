@@ -19,3 +19,13 @@
 
 # Go workspace file
 go.work
+
+# Editor Files
+.idea
+.vscode
+*.vsix
+.history
+
+# Local configuration
+*.env
+*netrc
