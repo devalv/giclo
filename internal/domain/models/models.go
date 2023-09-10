@@ -26,9 +26,23 @@ func (cfg *Config) Check() error {
 		return fmt.Errorf("'%s' is a file, not a directory", cfg.Dir)
 	}
 
+	if cfg.User == "" {
+		return fmt.Errorf("Config `User` value is not set")
+	}
+
 	if cfg.Debug {
 		log.Debug().Msg("Config is ok")
 	}
 
 	return nil
+}
+
+type GithubAPIRepoResponse struct {
+	DirName  string `json:"full_name"`
+	CloneURL string `json:"clone_url"`
+}
+
+type ReposToClone struct {
+	CloneURL string
+	CloneDir string
 }
