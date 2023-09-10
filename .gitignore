@@ -31,4 +31,4 @@ go.work
 *netrc
 
 # Build artifacts
-application
+app
