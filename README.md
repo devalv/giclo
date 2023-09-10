@@ -2,6 +2,10 @@
 
 GitHub Liked repos cloner
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/devalv/giclo)](https://goreportcard.com/report/github.com/devalv/giclo)
+[![CodeQL](https://github.com/devalv/giclo/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/devalv/giclo/actions/workflows/codeql-analysis.yml)
+[![codecov](https://codecov.io/gh/devalv/giclo/branch/main/graph/badge.svg)](https://codecov.io/gh/devalv/giclo)
+
 ## Installation
 
 1. Make sure that proper version of **Go** installed and ENVs are set.
@@ -18,3 +22,8 @@ export PATH="$PATH:/usr/local/go/bin:$HOME/go/bin"
 ```bash
 make setup
 ```
+
+## Project layout
+
+Directory names and meanings
+<https://github.com/golang-standards/project-layout/blob/master/README_ru.md>
