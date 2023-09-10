@@ -29,3 +29,6 @@ go.work
 # Local configuration
 *.env
 *netrc
+
+# Build artifacts
+app

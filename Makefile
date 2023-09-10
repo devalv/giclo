@@ -1,13 +1,17 @@
 setup:
-	echo "Install all the build and lint dependencies"
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sudo sh -s -- -b $(go env GOPATH)/bin v1.48.0
+	go install golang.org/x/tools/gopls@latest
 	go install golang.org/x/tools/cmd/goimports@latest
+	go install github.com/securego/gosec/v2/cmd/gosec@latest
+	go install github.com/orijtech/structslop/cmd/structslop@latest
+	go install mvdan.cc/gofumpt@latest
+	go install github.com/sqs/goreturns@latest
+	go install -v github.com/go-critic/go-critic/cmd/gocritic@latest
+	pip install pre-commit
+	pre-commit install
 
 pcr:
+	pre-commit autoupdate
 	pre-commit run --all-files
-
-lint:
-	golangci-lint run -c .golangci.yml
 
 fmt:
 	gofmt -w -s ./internal
@@ -21,8 +25,7 @@ cover:
 
 build:
 	$(MAKE) fmt
-	$(MAKE) lint
-	go build -o application ./cmd
+	go build -o app ./cmd
 
 run:
 	go run ./cmd
