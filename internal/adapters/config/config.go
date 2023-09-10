@@ -1,19 +1,20 @@
 package config
 
 import (
+	"fmt"
+
 	"github.com/ilyakaznacheev/cleanenv"
-	"github.com/rs/zerolog/log"
 
 	"giclo/internal/domain/errors"
 	"giclo/internal/domain/models"
 )
 
-func NewConfig() (*models.Config, error) {
+func NewConfig(cfgPath string) (*models.Config, error) {
 	var cfg models.Config
 
-	err := cleanenv.ReadEnv(&cfg)
+	err := cleanenv.ReadConfig("config.yml", &cfg)
 	if err != nil {
-		log.Fatal().Msgf(errors.ConfigError, err)
+		return nil, fmt.Errorf(errors.ConfigError, err)
 	}
 
 	return &cfg, nil
