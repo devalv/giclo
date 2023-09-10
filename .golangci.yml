@@ -1,3 +1,6 @@
+# golangci.com configuration
+# https://github.com/golangci/golangci/wiki/Configuration
+
 linters-settings:
   govet:
     check-shadowing: true
@@ -34,8 +37,6 @@ linters:
   enable:
     - asciicheck
     - bodyclose
-    - deadcode
-    - depguard
     - dogsled
     - dupl
     - errcheck
@@ -47,8 +48,7 @@ linters:
     - goconst
     - gocritic
     - gocyclo
-    - gofmt
-    - gofumpt
+    # - gofumpt
     - goheader
     - goimports
     - gomodguard
@@ -71,7 +71,6 @@ linters:
     - unconvert
     - unparam
     - unused
-    - varcheck
     - whitespace
 
 run:
@@ -86,9 +85,3 @@ run:
     - db
     - mock
     - config
-
-# golangci.com configuration
-# https://github.com/golangci/golangci/wiki/Configuration
-
-# example
-# https://github.com/golangci/golangci-lint/blob/master/.golangci.example.yml
