@@ -23,6 +23,11 @@ func (app *Application) Start(ctx context.Context) {
 		log.Debug().Msgf("Context: `%v`", ctx)
 	}
 	log.Debug().Msg("Starting application")
+	// TODO: проверить корректность конфига (интерфейс Check в type Config)
+	// TODO: создать нужные каталоги
+	// TODO: получить список лайканых реп
+	// TODO: выполнить клонирование
+	// TODO: выполнить архивацию
 }
 
 func (app *Application) Stop(ctx context.Context) {
