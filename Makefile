@@ -18,7 +18,7 @@ cover:
 
 build:
 	$(MAKE) fmt
-	go build -o application ./cmd
+	go build -o app ./cmd
 
 run:
 	go run ./cmd
