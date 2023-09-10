@@ -1,3 +1,6 @@
+# golangci.com configuration
+# https://github.com/golangci/golangci/wiki/Configuration
+
 linters-settings:
   govet:
     check-shadowing: true
@@ -43,14 +46,14 @@ linters:
     - gochecknoinits
     - gocognit
     - goconst
-    # - gocritic
+    - gocritic
     - gocyclo
     # - gofumpt
     - goheader
     - goimports
     - gomodguard
     - goprintffuncname
-    # - gosec
+    - gosec
     - gosimple
     - govet
     - ineffassign
@@ -70,7 +73,6 @@ linters:
     - unused
     - whitespace
 
-
 run:
   timeout: 5m
   tests: false
@@ -83,9 +85,3 @@ run:
     - db
     - mock
     - config
-
-# golangci.com configuration
-# https://github.com/golangci/golangci/wiki/Configuration
-
-# example
-# https://github.com/golangci/golangci-lint/blob/master/.golangci.example.yml
