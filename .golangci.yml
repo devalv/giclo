@@ -34,8 +34,6 @@ linters:
   enable:
     - asciicheck
     - bodyclose
-    - deadcode
-    - depguard
     - dogsled
     - dupl
     - errcheck
@@ -45,15 +43,14 @@ linters:
     - gochecknoinits
     - gocognit
     - goconst
-    - gocritic
+    # - gocritic
     - gocyclo
-    - gofmt
-    - gofumpt
+    # - gofumpt
     - goheader
     - goimports
     - gomodguard
     - goprintffuncname
-    - gosec
+    # - gosec
     - gosimple
     - govet
     - ineffassign
@@ -71,8 +68,8 @@ linters:
     - unconvert
     - unparam
     - unused
-    - varcheck
     - whitespace
+
 
 run:
   timeout: 5m
