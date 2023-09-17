@@ -32,3 +32,6 @@ go.work
 
 # Build artifacts
 app
+
+# Temporary folder with cloned repos
+2023-*/
