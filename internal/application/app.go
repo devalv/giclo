@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-git/go-git/v5"
 	"github.com/rs/zerolog/log"
 
 	"giclo/internal/domain/errors"
@@ -169,6 +170,16 @@ func getLikedRepos(ctx context.Context, reposPath string, cfg *models.Config) (*
 	return &reposToClone, nil
 }
 
+// clone repo to a local fs
+func cloneRepo(repoURL, dirPath string) error {
+	_, err := git.PlainClone(dirPath, false, &git.CloneOptions{
+		URL:      repoURL,
+		Progress: os.Stdout,
+	})
+
+	return err
+}
+
 func (app *Application) Start(ctx context.Context) {
 	if app.cfg.Debug {
 		log.Debug().Msgf("Config is: `%v`", app.cfg)
@@ -185,13 +196,19 @@ func (app *Application) Start(ctx context.Context) {
 		log.Fatal().Err(err).Msgf(errors.APILikedResponseError, err)
 	}
 
-	// TODO: выполнить клонирование
+	// TODO: явно нужна горутина
 	for _, repo := range *likedRepos {
-		fmt.Println(repo.CloneDir, repo.CloneURL)
+		if app.cfg.Debug {
+			log.Debug().Msgf("Собираемся клонировать %s в %s\n", repo.CloneURL, repo.CloneDir)
+		}
+		err := cloneRepo(repo.CloneURL, repo.CloneDir)
+		if err != nil {
+			log.Warn().Err(err)
+		}
 	}
 
 	// TODO: выполнить архивацию
-
+	// TODO: удалить временный каталог
 	os.Exit(0)
 }
 
