@@ -50,6 +50,11 @@ func main() {
 		log.Fatal().Err(err).Msg(errors.ConfigError)
 	}
 
+	cfgErr := cfg.Check()
+	if cfgErr != nil {
+		log.Fatal().Err(err).Msg(errors.ConfigCheckError)
+	}
+
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt, syscall.SIGSEGV)
 	defer cancel()
 
