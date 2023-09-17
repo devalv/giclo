@@ -184,7 +184,7 @@ func (app *Application) Start(ctx context.Context) {
 	if app.cfg.Debug {
 		log.Debug().Msgf("Config is: `%v`", app.cfg)
 	}
-	log.Debug().Msg("Starting application")
+	log.Info().Msg("Starting application.")
 
 	reposPath, err := createReposDirectory(app.cfg)
 	if err != nil {
@@ -199,7 +199,7 @@ func (app *Application) Start(ctx context.Context) {
 	// TODO: явно нужна горутина
 	for _, repo := range *likedRepos {
 		if app.cfg.Debug {
-			log.Debug().Msgf("Собираемся клонировать %s в %s\n", repo.CloneURL, repo.CloneDir)
+			log.Debug().Msgf("Собираемся клонировать %s в %s", repo.CloneURL, repo.CloneDir)
 		}
 		err := cloneRepo(repo.CloneURL, repo.CloneDir)
 		if err != nil {
@@ -207,14 +207,12 @@ func (app *Application) Start(ctx context.Context) {
 		}
 	}
 
-	// TODO: выполнить архивацию
-	// TODO: удалить временный каталог
-	os.Exit(0)
+	app.Stop(ctx)
 }
 
 func (app *Application) Stop(ctx context.Context) {
 	if app.cfg.Debug {
-		log.Debug().Msgf("Config is: `%v`", app.cfg)
+		log.Debug().Msgf("Config is: `%v`, ctx is: `%v`.", app.cfg, ctx)
 	}
-	log.Debug().Msgf("Application stopped: `%v`", ctx)
+	log.Info().Msg("Application stopped.")
 }
