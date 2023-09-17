@@ -215,4 +215,5 @@ func (app *Application) Stop(ctx context.Context) {
 		log.Debug().Msgf("Config is: `%v`, ctx is: `%v`.", app.cfg, ctx)
 	}
 	log.Info().Msg("Application stopped.")
+	os.Exit(0)
 }
