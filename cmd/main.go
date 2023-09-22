@@ -10,9 +10,9 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"giclo/internal/adapters/config"
-	"giclo/internal/application"
-	"giclo/internal/domain/errors"
+	"github.com/devalv/giclo/internal/adapters/config"
+	"github.com/devalv/giclo/internal/application"
+	"github.com/devalv/giclo/internal/domain/errors"
 )
 
 func ParseFlags() (cfgPath string, err error) {

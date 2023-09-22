@@ -3,7 +3,7 @@ package config
 import (
 	"github.com/ilyakaznacheev/cleanenv"
 
-	"giclo/internal/domain/models"
+	"github.com/devalv/giclo/internal/domain/models"
 )
 
 func NewConfig(cfgPath string) (*models.Config, error) {
