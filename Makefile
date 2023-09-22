@@ -25,7 +25,7 @@ cover:
 
 build:
 	$(MAKE) fmt
-	go build -o app ./cmd
+	export CGO_ENABLED=0  && go build -o app ./cmd
 
 run:
 	go run ./cmd
