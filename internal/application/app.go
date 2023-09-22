@@ -11,13 +11,14 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/rs/zerolog/log"
 
-	"giclo/internal/domain/errors"
-	"giclo/internal/domain/models"
+	"github.com/devalv/giclo/internal/domain/errors"
+	"github.com/devalv/giclo/internal/domain/models"
 )
 
 type Application struct {
@@ -98,7 +99,7 @@ func getRepos(resp *http.Response) (*[]models.GithubAPIRepoResponse, error) {
 
 // get pages count liked by a user
 func getTotalPages(ctx context.Context, cfg *models.Config) (int, error) {
-	resp, err := getAPIResponse(ctx, cfg, 1, 10)
+	resp, err := getAPIResponse(ctx, cfg, 1, 50)
 	if err != nil {
 		return 0, err
 	}
@@ -144,8 +145,8 @@ func getLikedRepos(ctx context.Context, reposPath string, cfg *models.Config) (*
 	var reposToClone []models.ReposToClone
 
 	for i := 1; i <= totalPages; i++ {
-		// TODO: goroutines
-		resp, err := getAPIResponse(ctx, cfg, i, 10)
+		// чтобы не нарваться на бан - получаем список последовательно
+		resp, err := getAPIResponse(ctx, cfg, i, 50)
 		if err != nil {
 			log.Warn().Err(err)
 			continue
@@ -171,13 +172,45 @@ func getLikedRepos(ctx context.Context, reposPath string, cfg *models.Config) (*
 }
 
 // clone repo to a local fs
-func cloneRepo(repoURL, dirPath string) error {
+func cloneRepo(wg *sync.WaitGroup, isDebug bool, repoURL, dirPath string) {
+	defer wg.Done()
+	defer log.Info().Msgf("Клонирован %s", repoURL)
+
+	if isDebug {
+		log.Debug().Msgf("Собираемся клонировать %s в %s", repoURL, dirPath)
+	}
+
 	_, err := git.PlainClone(dirPath, false, &git.CloneOptions{
 		URL:      repoURL,
-		Progress: os.Stdout,
+		Progress: nil,
 	})
+	if err != nil {
+		log.Warn().Err(err)
+	}
+}
 
-	return err
+// clone repos concurrently to a local fs with a WaitGroup
+func cloneRepos(isDebug bool, likedRepos *[]models.ReposToClone) {
+	// TODO: таймаут на клонирование каждого отдельного репозитория
+
+	var lastEl int
+	for i := 0; i < len(*likedRepos); i += 5 {
+		tmpRepos := *likedRepos
+		var waitGroup sync.WaitGroup
+
+		if i+5 <= len(*likedRepos) {
+			lastEl = i + 5
+		} else {
+			lastEl = len(*likedRepos)
+		}
+
+		for _, repo := range tmpRepos[i:lastEl] {
+			waitGroup.Add(1)
+			go cloneRepo(&waitGroup, isDebug, repo.CloneURL, repo.CloneDir)
+		}
+
+		waitGroup.Wait()
+	}
 }
 
 func (app *Application) Start(ctx context.Context) {
@@ -196,16 +229,7 @@ func (app *Application) Start(ctx context.Context) {
 		log.Fatal().Err(err).Msgf(errors.APILikedResponseError, err)
 	}
 
-	// TODO: явно нужна горутина
-	for _, repo := range *likedRepos {
-		if app.cfg.Debug {
-			log.Debug().Msgf("Собираемся клонировать %s в %s", repo.CloneURL, repo.CloneDir)
-		}
-		err := cloneRepo(repo.CloneURL, repo.CloneDir)
-		if err != nil {
-			log.Warn().Err(err)
-		}
-	}
+	cloneRepos(app.cfg.Debug, likedRepos)
 
 	app.Stop(ctx)
 }

@@ -1,4 +1,4 @@
-module giclo
+module github.com/devalv/giclo
 
 go 1.21
 
