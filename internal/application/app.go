@@ -17,8 +17,8 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/rs/zerolog/log"
 
-	"giclo/internal/domain/errors"
-	"giclo/internal/domain/models"
+	"github.com/devalv/giclo/internal/domain/errors"
+	"github.com/devalv/giclo/internal/domain/models"
 )
 
 type Application struct {
