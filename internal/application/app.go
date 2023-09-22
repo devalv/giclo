@@ -172,7 +172,8 @@ func getLikedRepos(ctx context.Context, reposPath string, cfg *models.Config) (*
 }
 
 // clone repo to a local fs
-func cloneRepo(repoURL, dirPath string) {
+func cloneRepo(wg *sync.WaitGroup, repoURL, dirPath string) {
+	defer wg.Done()
 	_, err := git.PlainClone(dirPath, false, &git.CloneOptions{
 		URL:      repoURL,
 		Progress: nil,
@@ -186,19 +187,29 @@ func cloneRepo(repoURL, dirPath string) {
 func cloneRepos(isDebug bool, likedRepos *[]models.ReposToClone) {
 	// TODO: таймаут на клонирование каждого отдельного репозитория
 
-	var waitGroup sync.WaitGroup
+	var lastEl int
+	for i := 0; i < len(*likedRepos); i += 5 {
+		tmpRepos := *likedRepos
+		var waitGroup sync.WaitGroup
 
-	for _, repo := range *likedRepos {
-		waitGroup.Add(1)
-
-		if isDebug {
-			log.Debug().Msgf("Собираемся клонировать %s в %s", repo.CloneURL, repo.CloneDir)
+		if i+5 <= len(*likedRepos) {
+			lastEl = i + 5
+		} else {
+			lastEl = len(*likedRepos)
 		}
 
-		go cloneRepo(repo.CloneURL, repo.CloneDir)
-	}
+		for _, repo := range tmpRepos[i:lastEl] {
+			waitGroup.Add(1)
 
-	waitGroup.Wait()
+			if isDebug {
+				log.Debug().Msgf("Собираемся клонировать %s в %s", repo.CloneURL, repo.CloneDir)
+			}
+
+			go cloneRepo(&waitGroup, repo.CloneURL, repo.CloneDir)
+		}
+
+		waitGroup.Wait()
+	}
 }
 
 func (app *Application) Start(ctx context.Context) {
