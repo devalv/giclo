@@ -172,8 +172,14 @@ func getLikedRepos(ctx context.Context, reposPath string, cfg *models.Config) (*
 }
 
 // clone repo to a local fs
-func cloneRepo(wg *sync.WaitGroup, repoURL, dirPath string) {
+func cloneRepo(wg *sync.WaitGroup, isDebug bool, repoURL, dirPath string) {
 	defer wg.Done()
+	defer log.Info().Msgf("Клонирован %s", repoURL)
+
+	if isDebug {
+		log.Debug().Msgf("Собираемся клонировать %s в %s", repoURL, dirPath)
+	}
+
 	_, err := git.PlainClone(dirPath, false, &git.CloneOptions{
 		URL:      repoURL,
 		Progress: nil,
@@ -200,12 +206,7 @@ func cloneRepos(isDebug bool, likedRepos *[]models.ReposToClone) {
 
 		for _, repo := range tmpRepos[i:lastEl] {
 			waitGroup.Add(1)
-
-			if isDebug {
-				log.Debug().Msgf("Собираемся клонировать %s в %s", repo.CloneURL, repo.CloneDir)
-			}
-
-			go cloneRepo(&waitGroup, repo.CloneURL, repo.CloneDir)
+			go cloneRepo(&waitGroup, isDebug, repo.CloneURL, repo.CloneDir)
 		}
 
 		waitGroup.Wait()
