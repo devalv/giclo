@@ -23,6 +23,17 @@ export PATH="$PATH:/usr/local/go/bin:$HOME/go/bin"
 make setup
 ```
 
+## Run
+
+Edit **config.yml** to specify the settings. Possible options:
+
+```yaml
+Debug bool   `yaml:"debug" env:"DEBUG"`  # additional logging messages
+User  string `yaml:"user" env:"USER" env-default:"user"`  # github username (which likes should be processed)
+Dir   string `yaml:"dir" env:"DIR" env-default:"."`  # local directory where repos should be cloned
+Token string `yaml:"token" env:"TOKEN"`   # github PAT
+```
+
 ## Project layout
 
 Directory names and meanings
