@@ -29,3 +29,6 @@ build:
 
 run:
 	go run ./cmd
+
+vet: fmt
+	go vet ./internal/...
