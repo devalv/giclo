@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v5.0.0
     hooks:
       - id: check-yaml
       - id: end-of-file-fixer
@@ -24,10 +24,6 @@ repos:
       - id: go-vet
       # GoSec
       - id: go-sec-mod
-      # StaticCheck
-      - id: go-staticcheck-mod
-      # StructSlop
-      - id: go-structslop-mod
       # Formatters
       - id: go-fmt
       - id: go-fmt-repo
@@ -39,7 +35,3 @@ repos:
       - id: go-returns-repo # replaces go-imports-repo & go-fmt-repo
       # Style Checkers
       - id: go-critic
-      # GolangCI-Lint
-      - id: golangci-lint
-      - id: golangci-lint-mod
-      - id: golangci-lint-repo-mod

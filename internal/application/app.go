@@ -35,7 +35,7 @@ func createReposDirectory(cfg *models.Config) (string, error) {
 	currentTime := time.Now().Format(time.DateTime)
 	reposPath := filepath.Join(cfg.Dir, currentTime)
 	if _, err := os.Stat(reposPath); os.IsNotExist(err) {
-		err := os.Mkdir(reposPath, os.ModePerm)
+		err := os.Mkdir(reposPath, os.ModeDir)
 		if err != nil {
 			return "", err
 		}
