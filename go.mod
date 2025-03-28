@@ -1,7 +1,8 @@
 module github.com/devalv/giclo
 
-go 1.21
-toolchain go1.23.7
+go 1.23.0
+
+toolchain go1.24.1
 
 require (
 	github.com/go-git/go-git/v5 v5.11.0
