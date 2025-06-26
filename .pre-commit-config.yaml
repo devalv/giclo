@@ -24,6 +24,8 @@ repos:
       - id: go-vet
       # GoSec
       - id: go-sec-mod
+      # StaticCheck
+      - id: go-staticcheck-mod
       # Formatters
       - id: go-fmt
       - id: go-fmt-repo
