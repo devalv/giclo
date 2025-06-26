@@ -32,10 +32,10 @@ func NewApplication(cfg *models.Config) *Application {
 
 // create directory like 2023-09-10 17:45:13 for repos cloning
 func createReposDirectory(cfg *models.Config) (string, error) {
-	currentTime := time.Now().Format(time.DateTime)
+	currentTime := time.Now().Format(time.DateOnly)
 	reposPath := filepath.Join(cfg.Dir, currentTime)
 	if _, err := os.Stat(reposPath); os.IsNotExist(err) {
-		err := os.Mkdir(reposPath, os.ModePerm)
+		err := os.Mkdir(reposPath, 0o750)
 		if err != nil {
 			return "", err
 		}
