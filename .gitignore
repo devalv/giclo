@@ -7,6 +7,7 @@
 *.dll
 *.so
 *.dylib
+.DS_Store
 
 # Test binary, built with `go test -c`
 *.test
@@ -29,9 +30,17 @@ go.work
 # Local configuration
 *.env
 *netrc
+config-local.yml
+config.yml
+./config.yml
+*.crt
+*.csr
+*.key
+./certs
+*.log
+*.db
 
 # Build artifacts
-app
-
-# Temporary folder with cloned repos
-2023-*/
+application
+.DS_Store
+giclo-*.deb

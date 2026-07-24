@@ -1,0 +1,28 @@
+name: semgrep Security Scan
+
+on:
+  pull_request:
+    paths:
+      - "main.go"
+
+permissions:
+  contents: read
+
+jobs:
+  semgrep-sast:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
+
+    - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 #v7
+      with:
+        python-version: '3.13'
+
+    - name: Install semgrep cli
+      run: |
+        python3 -m pip install semgrep
+        semgrep --version
+
+    - name: Semgrep SAST Scan
+      run: |
+        semgrep scan --config p/c --config p/security-audit --config p/owasp-top-ten --config p/golang --config p/cwe-top-25 --error .
