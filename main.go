@@ -75,15 +75,13 @@ type ReposToClone struct {
 	CloneDir string
 }
 
-// create directory like 2023-09-10 17:45:13 for repos cloning.
+// createReposDirectory like 2023-09-10 for repos cloning.
 func createReposDirectory(cfg *Config) (string, error) {
-	// TODO: dateonly dir?
 	currentTime := time.Now().Format(time.DateOnly)
 	reposPath := filepath.Join(cfg.Dir, currentTime)
 	if _, err := os.Stat(reposPath); os.IsNotExist(err) {
-		err := os.Mkdir(reposPath, os.ModeDir)
-		if err != nil {
-			return "", err
+		if err := os.Mkdir(reposPath, os.ModeDir); err != nil {
+			return "", fmt.Errorf("failed to create new repos directory: %w", err)
 		}
 	}
 
@@ -108,22 +106,24 @@ func getAPIResponse(ctx context.Context, cfg *Config, page, perPage int) (*http.
 	}
 
 	client := http.Client{
-		Timeout: 30 * time.Second,
+		Timeout: 30 * time.Second, //nolint:mnd
 	}
 
+	// TODO: extra timeout for req
 	res, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("error sending http request: %w", err)
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("bad response status code: %s", res.StatusCode)
+		return nil, fmt.Errorf("bad response status code: %d", res.StatusCode)
 	}
 
 	if cfg.Debug {
 		log.Debug().Msg("Got GithubAPI response.")
 	}
 
+	// TODO: не возвращать res, чтобы удобнее работать с defer
 	return res, nil
 }
 
@@ -133,7 +133,11 @@ func getRepos(resp *http.Response) (*[]GithubAPIRepoResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not read response body: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			log.Error().Err(closeErr).Msg("error closing request body")
+		}
+	}()
 
 	var result []GithubAPIRepoResponse
 	if err := json.Unmarshal(resBody, &result); err != nil {
@@ -145,11 +149,15 @@ func getRepos(resp *http.Response) (*[]GithubAPIRepoResponse, error) {
 
 // get pages count liked by a user.
 func getTotalPages(ctx context.Context, cfg *Config) (int, error) {
-	resp, err := getAPIResponse(ctx, cfg, 1, 50)
+	resp, err := getAPIResponse(ctx, cfg, 1, 50) //nolint:mnd
 	if err != nil {
 		return 0, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			log.Error().Err(closeErr).Msg("error closing request body")
+		}
+	}()
 
 	totalPages := 0
 	// called only once per app execution
@@ -193,16 +201,21 @@ func getLikedRepos(ctx context.Context, reposPath string, cfg *Config) (*[]Repos
 
 	for i := 1; i <= totalPages; i++ {
 		// чтобы не нарваться на бан - получаем список последовательно
-		resp, err := getAPIResponse(ctx, cfg, i, 50)
+		resp, err := getAPIResponse(ctx, cfg, i, 50) //nolint:mnd
+		defer func() {
+			if closeErr := resp.Body.Close(); closeErr != nil {
+				log.Error().Err(closeErr).Msg("error closing request body")
+			}
+		}()
 		if err != nil {
-			log.Warn().Err(err)
+			log.Warn().Err(err).Msg("failed to get api response")
 
 			continue
 		}
 
 		result, err := getRepos(resp)
 		if err != nil {
-			log.Warn().Err(err)
+			log.Warn().Err(err).Msgf("failed to get liked repos response")
 
 			continue
 		}
@@ -234,7 +247,7 @@ func cloneRepo(wg *sync.WaitGroup, isDebug bool, repoURL, dirPath string) {
 		Progress: nil,
 	})
 	if err != nil {
-		log.Warn().Err(err)
+		log.Warn().Err(err).Msgf("failed to clone repo: %s", repoURL)
 	}
 }
 
@@ -247,7 +260,7 @@ func cloneRepos(isDebug bool, likedRepos *[]ReposToClone) {
 		tmpRepos := *likedRepos
 		var waitGroup sync.WaitGroup
 
-		lastEl = min(i+5, len(*likedRepos))
+		lastEl = min(i+5, len(*likedRepos)) //nolint:mnd
 
 		for _, repo := range tmpRepos[i:lastEl] {
 			waitGroup.Add(1)
@@ -267,12 +280,12 @@ func run() error {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt, syscall.SIGSEGV)
 	defer cancel()
 
-	// TODO: old
 	reposPath, err := createReposDirectory(cfg)
 	if err != nil {
 		return fmt.Errorf("failed to create repos directory: %w", err)
 	}
 
+	// TODO: old
 	likedRepos, err := getLikedRepos(ctx, reposPath, cfg)
 	if err != nil {
 		return fmt.Errorf("could not get liked repos: %w", err)
