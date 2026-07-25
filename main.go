@@ -11,8 +11,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -22,6 +20,23 @@ import (
 	"github.com/ilyakaznacheev/cleanenv"
 	"github.com/rs/zerolog/log"
 )
+
+const (
+	workerSize = 5
+	timeout    = 10
+	perPage    = 50
+	apiURL     = "https://api.github.com/users/%s/starred?page=%d&per_page=%d"
+)
+
+type GithubAPIRepoResponse struct {
+	DirName  string `json:"full_name"`
+	CloneURL string `json:"clone_url"`
+}
+
+type ReposToClone struct {
+	CloneURL string
+	CloneDir string
+}
 
 type Config struct {
 	Debug bool   `yaml:"debug"`
@@ -65,173 +80,148 @@ func NewConfig() (*Config, error) {
 	return cfg, nil
 }
 
-type GithubAPIRepoResponse struct {
-	DirName  string `json:"full_name"`
-	CloneURL string `json:"clone_url"`
-}
-
-type ReposToClone struct {
-	CloneURL string
-	CloneDir string
-}
-
 // createReposDirectory like 2023-09-10 for repos cloning.
 func createReposDirectory(cfg *Config) (string, error) {
-	currentTime := time.Now().Format(time.DateOnly)
-	reposPath := filepath.Join(cfg.Dir, currentTime)
-	if _, err := os.Stat(reposPath); os.IsNotExist(err) {
-		if err := os.Mkdir(reposPath, os.ModeDir); err != nil {
-			return "", fmt.Errorf("failed to create new repos directory: %w", err)
-		}
+	reposPath := filepath.Join(cfg.Dir, time.Now().Format(time.DateOnly))
+	if err := os.MkdirAll(reposPath, 0o750); err != nil { //nolint:mnd
+		return "", fmt.Errorf("create repos directory: %w", err)
 	}
 
 	if cfg.Debug {
-		log.Debug().Msgf("Created directory %s", reposPath)
+		log.Debug().Str("path", reposPath).Msg("created repository directory")
 	}
 
 	return reposPath, nil
 }
 
-// get API response.
-func getAPIResponse(ctx context.Context, cfg *Config, page, perPage int) (*http.Response, error) {
-	requestURL := fmt.Sprintf("https://api.github.com/users/%s/starred?page=%d&per_page=%d", cfg.User, page, perPage)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, http.NoBody)
+func getAPIResponse(ctx context.Context, cfg *Config, page int) (*http.Response, error) {
+	url := fmt.Sprintf(apiURL, cfg.User, page, perPage)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
-		return nil, fmt.Errorf("error making http request: %w", err)
+		return nil, fmt.Errorf("create request: %w", err)
 	}
 
-	req.Header.Set("Accept", "application/vnd.github.v3+json")
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("X-Github-Api-Version", "2022-11-28")
+
 	if cfg.Token != "" {
-		req.Header.Set("Authorization", "token "+cfg.Token)
+		req.Header.Set("Authorization", "Bearer "+cfg.Token)
 	}
 
-	client := http.Client{
-		Timeout: 30 * time.Second, //nolint:mnd
+	client := &http.Client{
+		Timeout: timeout * time.Second,
 	}
 
-	// TODO: extra timeout for req
-	res, err := client.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("error sending http request: %w", err)
+		return nil, fmt.Errorf("send request: %w", err)
 	}
 
-	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("bad response status code: %d", res.StatusCode)
-	}
-
-	if cfg.Debug {
-		log.Debug().Msg("Got GithubAPI response.")
-	}
-
-	// TODO: не возвращать res, чтобы удобнее работать с defer
-	return res, nil
-}
-
-// extract repo links from a response.
-func getRepos(resp *http.Response) (*[]GithubAPIRepoResponse, error) {
-	resBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("could not read response body: %w", err)
-	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			log.Error().Err(closeErr).Msg("error closing request body")
-		}
-	}()
-
-	var result []GithubAPIRepoResponse
-	if err := json.Unmarshal(resBody, &result); err != nil {
-		return nil, fmt.Errorf("could not unmarshal JSON: %w", err)
-	}
-
-	return &result, nil
-}
-
-// get pages count liked by a user.
-func getTotalPages(ctx context.Context, cfg *Config) (int, error) {
-	resp, err := getAPIResponse(ctx, cfg, 1, 50) //nolint:mnd
-	if err != nil {
-		return 0, err
-	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			log.Error().Err(closeErr).Msg("error closing request body")
-		}
-	}()
-
-	totalPages := 0
-	// called only once per app execution
-	pat := regexp.MustCompile(`([?|&]page=\d+)`)
-
-	for _, link := range resp.Header.Values("Link") {
-		for part := range strings.SplitSeq(link, ", ") {
-			if strings.Contains(part, `rel="last"`) {
-				lastPageSub := pat.FindString(part)
-				if lastPageSub != "" {
-					totalPages, err = strconv.Atoi(strings.Split(lastPageSub, "=")[1])
-					if err != nil {
-						totalPages = 0
-
-						break
-					}
-				}
-			}
-		}
-	}
-
-	if totalPages == 0 {
-		return totalPages, errors.New("could not extract total pages")
-	}
-
-	return totalPages, nil
-}
-
-// get a list of repositories liked by a user.
-func getLikedRepos(ctx context.Context, reposPath string, cfg *Config) (*[]ReposToClone, error) {
-	totalPages, err := getTotalPages(ctx, cfg)
-	if cfg.Debug {
-		log.Debug().Msgf("Total pages %d", totalPages)
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	var reposToClone []ReposToClone
-
-	for i := 1; i <= totalPages; i++ {
-		// чтобы не нарваться на бан - получаем список последовательно
-		resp, err := getAPIResponse(ctx, cfg, i, 50) //nolint:mnd
+	if resp.StatusCode != http.StatusOK {
 		defer func() {
 			if closeErr := resp.Body.Close(); closeErr != nil {
 				log.Error().Err(closeErr).Msg("error closing request body")
 			}
 		}()
-		if err != nil {
-			log.Warn().Err(err).Msg("failed to get api response")
 
-			continue
-		}
+		body, _ := io.ReadAll(resp.Body)
 
-		result, err := getRepos(resp)
-		if err != nil {
-			log.Warn().Err(err).Msgf("failed to get liked repos response")
+		return nil, fmt.Errorf(
+			"github api returned status %d\nbody:\n%s",
+			resp.StatusCode,
+			string(body),
+		)
+	}
 
-			continue
-		}
+	if cfg.Debug {
+		log.Debug().
+			Int("page", page).
+			Msg("github api request succeeded")
+	}
 
-		for _, repo := range *result {
-			if repo.CloneURL == "" || repo.DirName == "" {
-				log.Warn().Msgf("Can`t get url or name %s|%s", repo.CloneURL, repo.DirName)
+	return resp, nil
+}
 
-				continue
+func getRepos(resp *http.Response) ([]GithubAPIRepoResponse, error) {
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response body: %w", err)
+	}
+
+	var repos []GithubAPIRepoResponse
+
+	if err := json.Unmarshal(body, &repos); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	return repos, nil
+}
+
+func hasNextPage(resp *http.Response) bool {
+	for _, header := range resp.Header.Values("Link") {
+		for part := range strings.SplitSeq(header, ",") {
+			if strings.Contains(part, `rel="next"`) {
+				return true
 			}
-			repoDir := fmt.Sprintf("%s/%s", reposPath, repo.DirName)
-			reposToClone = append(reposToClone, ReposToClone{CloneURL: repo.CloneURL, CloneDir: repoDir})
 		}
 	}
 
-	return &reposToClone, nil
+	return false
+}
+
+func getLikedRepos(ctx context.Context, reposPath string, cfg *Config) ([]ReposToClone, error) {
+	var reposToClone []ReposToClone
+
+	for page := 1; ; page++ {
+		resp, err := getAPIResponse(ctx, cfg, page)
+		if err != nil {
+			return nil, err
+		}
+
+		repos, err := getRepos(resp)
+		nextPage := hasNextPage(resp)
+
+		if err := resp.Body.Close(); err != nil {
+			log.Error().
+				Err(err).
+				Msg("failed to close response body")
+		}
+
+		if err != nil {
+			return nil, err
+		}
+
+		if cfg.Debug {
+			log.Debug().
+				Int("page", page).
+				Int("repos", len(repos)).
+				Bool("has_next", nextPage).
+				Msg("received github page")
+		}
+
+		for _, repo := range repos {
+			if repo.CloneURL == "" || repo.DirName == "" {
+				log.Warn().
+					Str("clone_url", repo.CloneURL).
+					Str("dir_name", repo.DirName).
+					Msg("repository has empty fields")
+
+				continue
+			}
+
+			reposToClone = append(reposToClone, ReposToClone{
+				CloneURL: repo.CloneURL,
+				CloneDir: filepath.Join(reposPath, repo.DirName),
+			})
+		}
+
+		if !nextPage {
+			break
+		}
+	}
+
+	return reposToClone, nil
 }
 
 func cloneRepo(wg *sync.WaitGroup, isDebug bool, repoURL, dirPath string) {
@@ -252,22 +242,21 @@ func cloneRepo(wg *sync.WaitGroup, isDebug bool, repoURL, dirPath string) {
 }
 
 // clone repos concurrently to a local fs with a WaitGroup.
-func cloneRepos(isDebug bool, likedRepos *[]ReposToClone) {
+func cloneRepos(isDebug bool, likedRepos []ReposToClone) {
 	// TODO: таймаут на клонирование каждого отдельного репозитория
 
-	var lastEl int
-	for i := 0; i < len(*likedRepos); i += 5 {
-		tmpRepos := *likedRepos
-		var waitGroup sync.WaitGroup
+	for i := 0; i < len(likedRepos); i += workerSize {
+		end := min(i+workerSize, len(likedRepos))
 
-		lastEl = min(i+5, len(*likedRepos)) //nolint:mnd
+		var wg sync.WaitGroup
 
-		for _, repo := range tmpRepos[i:lastEl] {
-			waitGroup.Add(1)
-			go cloneRepo(&waitGroup, isDebug, repo.CloneURL, repo.CloneDir)
+		for _, repo := range likedRepos[i:end] {
+			wg.Add(1)
+
+			go cloneRepo(&wg, isDebug, repo.CloneURL, repo.CloneDir)
 		}
 
-		waitGroup.Wait()
+		wg.Wait()
 	}
 }
 
@@ -285,11 +274,11 @@ func run() error {
 		return fmt.Errorf("failed to create repos directory: %w", err)
 	}
 
-	// TODO: old
 	likedRepos, err := getLikedRepos(ctx, reposPath, cfg)
 	if err != nil {
 		return fmt.Errorf("could not get liked repos: %w", err)
 	}
+	log.Debug().Msgf("liked repos: %v", likedRepos)
 
 	cloneRepos(cfg.Debug, likedRepos)
 

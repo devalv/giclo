@@ -43,4 +43,4 @@ config.yml
 # Build artifacts
 application
 .DS_Store
-giclo-*.deb
+giclo*.deb
