@@ -1,0 +1,50 @@
+name: Build binary app artifact
+on:
+  release:
+    types: [created]
+
+  # Ручной запуск из интерфейса GitHub
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Для загрузки артефактов в релиз
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
+      with:
+        fetch-depth: 0  # Полная история для тегов
+
+    - name: Set up Go
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version: '1.26'
+
+    - name: Download Go modules
+      run: go mod download
+
+    - name: Build
+      run: |
+        go env -w CGO_ENABLED=0
+        go env -w GOOS=linux
+        go env -w GOARCH=amd64
+        go build -o giclo main.go
+
+    - name: Upload artifact to GitHub Releases (if triggered by release)
+      if: github.event_name == 'release'
+      uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
+      with:
+        files: |
+          ./giclo
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload artifact as workflow artifact (for manual runs)
+      if: github.event_name != 'release'
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: giclo
+        path: ./giclo
+        retention-days: 7

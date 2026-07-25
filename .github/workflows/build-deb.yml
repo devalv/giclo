@@ -1,0 +1,44 @@
+name: Build deb package
+on:
+  release:
+    types: [created]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Для загрузки артефактов в релиз
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
+      with:
+        fetch-depth: 0  # Полная история для тегов
+
+    - name: Extract version from release tag
+      env:
+        # <<< Данные передаются через переменную окружения >>>
+        RAW_TAG: ${{ github.ref }}
+      run: |
+        TAG_NAME="${RAW_TAG#refs/tags/}"
+        VERSION="${TAG_NAME#v}"
+        echo "PACKAGE_VERSION=$VERSION" >> $GITHUB_ENV
+        echo "Extracted version: $VERSION"
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c #v4.2.0
+
+    - name: Build Docker image and extract artifact
+      run: |
+        chmod +x ${{ github.workspace }}/devops/build-deb.sh
+        ${{ github.workspace }}/devops/build-deb.sh
+      env:
+        PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
+
+    - name: Upload artifact to GitHub Releases (if triggered by release)
+      if: github.event_name == 'release'
+      uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
+      with:
+        files: |
+          ./giclo_${{ env.PACKAGE_VERSION }}_amd64.deb
+        token: ${{ secrets.GITHUB_TOKEN }}
