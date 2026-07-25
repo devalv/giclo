@@ -39,10 +39,10 @@ type ReposToClone struct {
 }
 
 type Config struct {
-	Debug bool   `yaml:"debug"`
-	User  string `yaml:"user"`
-	Dir   string `yaml:"dir"`
-	Token string `yaml:"token"`
+	Debug      bool   `yaml:"debug"`
+	GitHubUser string `yaml:"gh_user"`
+	Dir        string `yaml:"dir"`
+	Token      string `yaml:"token"`
 }
 
 func NewConfig() (*Config, error) {
@@ -69,8 +69,8 @@ func NewConfig() (*Config, error) {
 		return nil, fmt.Errorf("config read err: %w", err)
 	}
 
-	if cfg.User == "" {
-		return nil, errors.New("Config `User` value is not set")
+	if cfg.GitHubUser == "" {
+		return nil, errors.New("Config `gh_user` value is not set")
 	}
 
 	if cfg.Debug {
@@ -95,7 +95,7 @@ func createReposDirectory(cfg *Config) (string, error) {
 }
 
 func getAPIResponse(ctx context.Context, cfg *Config, page int) (*http.Response, error) {
-	url := fmt.Sprintf(apiURL, cfg.User, page, perPage)
+	url := fmt.Sprintf(apiURL, cfg.GitHubUser, page, perPage)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {

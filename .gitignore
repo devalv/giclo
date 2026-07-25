@@ -44,3 +44,8 @@ config.yml
 application
 .DS_Store
 giclo*.deb
+
+# Test runs
+202*
+203*
+204*
