@@ -1,0 +1,49 @@
+FROM golang:1.26-alpine AS go-builder
+
+ARG PACKAGE_ARCH=amd64
+
+WORKDIR /src
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${PACKAGE_ARCH} go build -trimpath -ldflags="-s -w" -o /tmp/giclo main.go
+
+FROM debian:trixie-slim AS builder
+
+ARG PACKAGE_VERSION=0.0.0
+ARG PACKAGE_ARCH=amd64
+
+RUN set -e && \
+    apt-get update || exit 1 && \
+    apt-get install -y -q --no-install-recommends \
+    dpkg-dev=1.22.22 git=1:2.47.3-0+deb13u1 || exit 1 && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src
+
+COPY . .
+COPY --from=go-builder /tmp/giclo /tmp/giclo
+
+RUN sed "s/@PACKAGE_VERSION@/${PACKAGE_VERSION}/g" \
+    devops/deb/giclo/root/DEBIAN/control.tpl > \
+    devops/deb/giclo/root/DEBIAN/control
+
+RUN install -m 0755 /tmp/giclo devops/deb/giclo/root/usr/local/bin/giclo
+
+RUN rm -f \
+    devops/deb/giclo/root/DEBIAN/control.tpl\
+    devops/deb/giclo/root/usr/local/bin/.gitkeep
+
+
+RUN dpkg-deb --build \
+    devops/deb/giclo/root \
+    "/tmp/giclo_${PACKAGE_VERSION}_${PACKAGE_ARCH}.deb"
+
+FROM scratch AS artifact
+
+ARG PACKAGE_VERSION=0.0.0
+ARG PACKAGE_ARCH=amd64
+
+COPY --from=builder "/tmp/giclo_${PACKAGE_VERSION}_${PACKAGE_ARCH}.deb" /

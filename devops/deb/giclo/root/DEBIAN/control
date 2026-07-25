@@ -1,0 +1,7 @@
+Package: giclo
+Version: 0.0.0
+Section: net
+Priority: optional
+Architecture: amd64
+Maintainer: Aleksei Devyatkin <giclo@devyatkin.dev>
+Description: Console util for cloning liked github repos

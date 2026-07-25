@@ -1,84 +1,46 @@
-# golangci.com configuration
-# https://github.com/golangci/golangci/wiki/Configuration
-
-linters-settings:
-  govet:
-    check-shadowing: true
-  golint:
-    min-confidence: 0
-  gocyclo:
-    min-complexity: 15
-  dupl:
-    threshold: 100
-  goconst:
-    min-len: 2
-    min-occurrences: 2
-  misspell:
-    locale: US
-  lll:
-    line-length: 140
-  goimports:
-    local-prefixes: github.com/golangci/golangci-lint
-  gocritic:
-    enabled-tags:
-      - performance
-      - style
-      - experimental
-    disabled-checks:
-      - dupImport # https://github.com/go-critic/go-critic/issues/845
-      - whyNoLint
+# https://golangci-lint.run/docs/configuration/file/
+version: "2"
 
 linters:
+  default: all
   disable:
-    - godox # disable errors on TODO's
-    - funlen
-    - rowserrcheck
-    - godot
-  enable:
-    - asciicheck
-    - bodyclose
-    - dogsled
-    - dupl
-    - errcheck
-    - exhaustive
-    - gochecknoglobals
-    - gochecknoinits
-    - gocognit
-    - goconst
-    - gocritic
-    - gocyclo
-    - goheader
-    - goimports
+    - wsl
+    - wsl_v5
+    - depguard
+    - err113
+    - noinlineerr
+    - nonamedreturns
+    - revive
+    - varnamelen
+    - exhaustruct
+    - tagliatelle
+    - godox
     - gomodguard
-    - goprintffuncname
-    - gosec
-    - gosimple
-    - govet
-    - ineffassign
-    - lll
-    - misspell
-    - nakedret
-    - nestif
-    - noctx
-    - nolintlint
-    - prealloc
-    - stylecheck
-    - testpackage
-    - typecheck
-    - unconvert
-    - unparam
-    - unused
-    - whitespace
+    - forbidigo
+  settings:
+    funlen:
+      lines: 150
+      statements: 75
+    cyclop:
+      max-complexity: 25
+
+formatters:
+  enable:
+    - gofmt
+    - gofumpt
+    - goimports
+  settings:
+    gofmt:
+      simplify: true
+    gofumpt:
+      extra-rules: true
+    goimports:
+      local-prefixes:
+        - github.com/devalv/giclo
+  exclusions:
+    paths:
+      - ".*\\.pb\\.go"  # Exclude protobuf generated files
 
 run:
   timeout: 5m
   tests: false
-  skip-dirs:
-    - swagger-ui
-    - docs
-    - templates
-    - migrations
-    - \.go
-    - db
-    - mock
-    - config
