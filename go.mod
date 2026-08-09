@@ -3,7 +3,7 @@ module github.com/devalv/giclo
 go 1.26.4
 
 require (
-	github.com/go-git/go-git/v5 v5.19.1
+	github.com/go-git/go-git/v5 v5.19.2
 	github.com/rs/zerolog v1.35.1
 )
 
