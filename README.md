@@ -12,7 +12,6 @@ GitHub Liked repos cloner
 ## Содержимое конфигурационного файла приложения (config.yml)
 
 ```
-debug: true
 gh_user: "github-username-which-liked-repos-to-download"
 dir: "path-where-to-download-repos"
 token: "github token"
@@ -22,7 +21,6 @@ token: "github token"
 
 ```
 dir: "."
-debug: false
 ```
 
 ## Сборка deb-пакета
