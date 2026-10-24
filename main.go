@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -18,7 +19,6 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/ilyakaznacheev/cleanenv"
-	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -39,7 +39,6 @@ type ReposToClone struct {
 }
 
 type Config struct {
-	Debug      bool   `yaml:"debug"`
 	GitHubUser string `yaml:"gh_user"`
 	Dir        string `yaml:"dir"`
 	Token      string `yaml:"token"`
@@ -60,8 +59,7 @@ func NewConfig() (*Config, error) {
 	}
 
 	cfg := &Config{
-		Debug: false,
-		Dir:   ".",
+		Dir: ".",
 	}
 
 	err = cleanenv.ReadConfig(cfgPath, cfg)
@@ -73,10 +71,6 @@ func NewConfig() (*Config, error) {
 		return nil, errors.New("Config `gh_user` value is not set")
 	}
 
-	if cfg.Debug {
-		log.Debug().Msg("Config is ok")
-	}
-
 	return cfg, nil
 }
 
@@ -85,10 +79,6 @@ func createReposDirectory(cfg *Config) (string, error) {
 	reposPath := filepath.Join(cfg.Dir, time.Now().Format(time.DateOnly))
 	if err := os.MkdirAll(reposPath, 0o750); err != nil { //nolint:mnd
 		return "", fmt.Errorf("create repos directory: %w", err)
-	}
-
-	if cfg.Debug {
-		log.Debug().Str("path", reposPath).Msg("created repository directory")
 	}
 
 	return reposPath, nil
@@ -121,7 +111,7 @@ func getAPIResponse(ctx context.Context, cfg *Config, page int) (*http.Response,
 	if resp.StatusCode != http.StatusOK {
 		defer func() {
 			if closeErr := resp.Body.Close(); closeErr != nil {
-				log.Error().Err(closeErr).Msg("error closing request body")
+				slog.Error("error closing request body", slog.Any("error", closeErr))
 			}
 		}()
 
@@ -132,12 +122,6 @@ func getAPIResponse(ctx context.Context, cfg *Config, page int) (*http.Response,
 			resp.StatusCode,
 			string(body),
 		)
-	}
-
-	if cfg.Debug {
-		log.Debug().
-			Int("page", page).
-			Msg("github api request succeeded")
 	}
 
 	return resp, nil
@@ -183,29 +167,19 @@ func getLikedRepos(ctx context.Context, reposPath string, cfg *Config) ([]ReposT
 		nextPage := hasNextPage(resp)
 
 		if err := resp.Body.Close(); err != nil {
-			log.Error().
-				Err(err).
-				Msg("failed to close response body")
+			slog.Error("error closing request body", slog.Any("error", err))
 		}
 
 		if err != nil {
 			return nil, err
 		}
 
-		if cfg.Debug {
-			log.Debug().
-				Int("page", page).
-				Int("repos", len(repos)).
-				Bool("has_next", nextPage).
-				Msg("received github page")
-		}
-
 		for _, repo := range repos {
 			if repo.CloneURL == "" || repo.DirName == "" {
-				log.Warn().
-					Str("clone_url", repo.CloneURL).
-					Str("dir_name", repo.DirName).
-					Msg("repository has empty fields")
+				slog.Warn("repository has empty fields",
+					slog.String("clone_url", repo.CloneURL),
+					slog.String("dir_name", repo.DirName),
+				)
 
 				continue
 			}
@@ -224,25 +198,24 @@ func getLikedRepos(ctx context.Context, reposPath string, cfg *Config) ([]ReposT
 	return reposToClone, nil
 }
 
-func cloneRepo(wg *sync.WaitGroup, isDebug bool, repoURL, dirPath string) {
+func cloneRepo(wg *sync.WaitGroup, repoURL, dirPath string) {
 	defer wg.Done()
-	defer log.Info().Msgf("Клонирован %s", repoURL)
-
-	if isDebug {
-		log.Debug().Msgf("Собираемся клонировать %s в %s", repoURL, dirPath)
-	}
+	defer slog.Info("Клонирован " + repoURL)
 
 	_, err := git.PlainClone(dirPath, false, &git.CloneOptions{
 		URL:      repoURL,
 		Progress: nil,
 	})
 	if err != nil {
-		log.Warn().Err(err).Msgf("failed to clone repo: %s", repoURL)
+		slog.Warn("failed to clone repo",
+			slog.String("repo_url", repoURL),
+			slog.Any("error", err),
+		)
 	}
 }
 
 // clone repos concurrently to a local fs with a WaitGroup.
-func cloneRepos(isDebug bool, likedRepos []ReposToClone) {
+func cloneRepos(likedRepos []ReposToClone) {
 	// TODO: таймаут на клонирование каждого отдельного репозитория
 
 	for i := 0; i < len(likedRepos); i += workerSize {
@@ -253,7 +226,7 @@ func cloneRepos(isDebug bool, likedRepos []ReposToClone) {
 		for _, repo := range likedRepos[i:end] {
 			wg.Add(1)
 
-			go cloneRepo(&wg, isDebug, repo.CloneURL, repo.CloneDir)
+			go cloneRepo(&wg, repo.CloneURL, repo.CloneDir)
 		}
 
 		wg.Wait()
@@ -278,15 +251,15 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("could not get liked repos: %w", err)
 	}
-	log.Debug().Msgf("liked repos: %v", likedRepos)
 
-	cloneRepos(cfg.Debug, likedRepos)
+	cloneRepos(likedRepos)
 
 	return nil
 }
 
 func main() {
 	if err := run(); err != nil {
-		log.Fatal().Err(err).Msg("application failed")
+		slog.Error("application failed", slog.Any("error", err))
+		os.Exit(1)
 	}
 }

@@ -17,6 +17,7 @@ linters:
     - godox
     - gomodguard
     - forbidigo
+    - exhaustruct_v5
   settings:
     funlen:
       lines: 150
